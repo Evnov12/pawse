@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Pawse · 抓舞机</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FAF8F4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pawse">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cream:      #FBF7EF;
+  --cream2:     #F4EDE0;
+  --tan:        #C9B99A;
+  --tan-light:  #E8DECE;
+  --brown:      #8B6F47;
+  --brown-dark: #3D2B1F;
+  --blue:       #A8C8D8;
+  --blue-light: #D6EAF2;
+  --blue-mid:   #7BAFC4;
+  --pink:       #E8A9A0;
+  --pink-soft:  #F6E2DD;
+  --pink-mid:   #DD8E84;
+  --muted:      #9E8B78;
+  --danger:     #C0614A;
+  --font-serif: 'DM Serif Display', Georgia, serif;
+  --font-sans:  'DM Sans', system-ui, sans-serif;
+  --radius:     8px;
+  --border:     1px solid var(--tan);
+}
+
+html, body {
+  height: 100%;
+  background: var(--cream);
+  color: var(--brown-dark);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Screens ── */
+.screen {
+  position: fixed; inset: 0;
+  background: var(--cream);
+  display: flex; flex-direction: column;
+  transition: opacity .3s, transform .3s;
+}
+.screen.hidden { opacity: 0; pointer-events: none; transform: translateY(12px); }
+
+/* ══════════════════════════════
+   HOME SCREEN
+══════════════════════════════ */
+#screen-home { overflow-y: auto; }
+
+.home-header {
+  padding: 48px 32px 22px;
+  border-bottom: var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.home-header-text h1 {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 400;
+  color: var(--brown-dark);
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+}
+
+.home-header-text p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 300;
+}
+
+/* Language toggle */
+.lang-btn {
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding: 6px 12px;
+  background: var(--cream2);
+  border: var(--border);
+  border-radius: 20px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brown);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.lang-btn:hover { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); }
+
+/* Empty state */
+#empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  gap: 18px;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 88px; height: 88px;
+  border: 1.5px solid var(--blue);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 38px;
+  background: var(--pink-soft);
+  animation: dog-bounce 1.8s ease-in-out infinite;
+}
+
+@keyframes dog-bounce {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-8px) rotate(3deg); }
+}
+
+/* Small dog in the title — handled by emoji in text, no extra style needed */
+
+.empty-state-text h2 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--brown-dark);
+}
+.empty-state-text p {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 300;
+  font-style: italic;
+}
+
+/* Project list */
+#project-list-wrap { flex: 1; overflow-y: auto; display: none; }
+
+.list-section-label {
+  padding: 20px 32px 8px;
+  font-size: 11px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.project-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 32px;
+  border-bottom: var(--border);
+  gap: 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.project-item:hover { background: var(--cream2); }
+
+.project-thumb {
+  width: 48px; height: 36px;
+  background: var(--blue-light);
+  border-radius: 5px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  border: var(--border);
+}
+
+.project-info { flex: 1; min-width: 0; }
+
+.project-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--brown-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-name-input {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--brown-dark);
+  font-family: var(--font-sans);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--blue-mid);
+  outline: none;
+  width: 100%;
+  padding: 1px 0;
+}
+
+.project-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-weight: 300;
+}
+
+.project-actions {
+  display: flex; gap: 6px; flex-shrink: 0;
+}
+
+.icon-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  transition: all .15s;
+}
+.icon-btn:hover { background: var(--cream2); color: var(--brown); border-color: var(--brown); }
+.icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: #fdf0ee; }
+
+/* FAB */
+.fab {
+  position: fixed;
+  bottom: 32px; right: 32px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 13px 22px;
+  background: var(--brown-dark);
+  color: var(--cream);
+  border: none;
+  border-radius: 40px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(61,43,31,0.2);
+  transition: transform .15s, box-shadow .15s;
+  z-index: 100;
+}
+.fab:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(221,142,132,0.35); }
+.fab:active { transform: translateY(0); }
+
+/* ══════════════════════════════
+   PLAYER SCREEN
+══════════════════════════════ */
+#screen-player { background: var(--cream); }
+
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: var(--border);
+  flex-shrink: 0;
+  background: var(--cream);
+}
+
+.back-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: var(--border);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--brown);
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.back-btn:hover { background: var(--cream2); }
+
+#player-title {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* player lang btn */
+.player-lang-btn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  background: var(--cream2);
+  border: var(--border);
+  border-radius: 16px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brown);
+  cursor: pointer;
+  transition: all .15s;
+}
+.player-lang-btn:hover { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); }
+
+/* Player body */
+.player-body { flex: 1; display: flex; overflow: hidden; }
+
+.video-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.video-wrap {
+  flex: 1;
+  background: #1a1410;
+  border-radius: var(--radius);
+  border: var(--border);
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+}
+
+#render-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+#vid {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: none;
+  background: #1a1410;
+}
+#vid.native-visible { display: block; }
+#vid.native-mirrored { transform: scaleX(-1); }
+
+#load-status {
+  position: absolute; inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  color: var(--cream);
+  font-size: 14px;
+  line-height: 1.6;
+}
+#load-status.show { display: flex; }
+#load-status .ls-spinner {
+  width: 28px; height: 28px;
+  border: 3px solid rgba(250,248,244,0.25);
+  border-top-color: var(--cream);
+  border-radius: 50%;
+  animation: ls-spin 0.8s linear infinite;
+}
+@keyframes ls-spin { to { transform: rotate(360deg); } }
+/* Dancing dog loader (emoji) */
+#load-status .ls-dog {
+  font-size: 44px;
+  line-height: 1;
+  animation: dog-wiggle 0.6s ease-in-out infinite;
+}
+@keyframes dog-wiggle {
+  0%, 100% { transform: rotate(-8deg) translateY(0); }
+  50%      { transform: rotate(8deg) translateY(-6px); }
+}
+#load-status .ls-hint { font-size: 13px; opacity: 0.7; max-width: 260px; }
+
+/* Timeline */
+.timeline-wrap { display: flex; flex-direction: column; gap: 4px; }
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.loop-badge { font-size: 11px; color: var(--blue-mid); display: none; }
+.loop-badge.show { display: block; }
+
+.tl-container { position: relative; height: 30px; }
+
+.tl-track {
+  position: absolute;
+  top: 12px; left: 0; right: 0;
+  height: 6px;
+  background: var(--tan-light);
+  border-radius: 3px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.tl-buffered { position: absolute; left:0; top:0; height:100%; background: var(--tan); border-radius:3px; pointer-events:none; }
+.tl-played   { position: absolute; left:0; top:0; height:100%; background: var(--brown); border-radius:3px; pointer-events:none; }
+
+.loop-zone {
+  position: absolute; top:0; height:100%;
+  background: rgba(168,200,216,0.5);
+  border-radius: 3px;
+  pointer-events: none;
+  display: none;
+}
+
+.scrub-handle {
+  position: absolute;
+  top: 8px;
+  width: 14px; height: 14px;
+  background: var(--cream);
+  border: 2px solid var(--brown);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+  z-index: 10;
+}
+.scrub-handle:active { cursor: grabbing; border-color: var(--blue-mid); }
+
+.loop-handle {
+  position: absolute;
+  top: 7px;
+  width: 10px; height: 18px;
+  border-radius: 3px;
+  cursor: ew-resize;
+  z-index: 11;
+  display: none;
+  transform: translateX(-50%);
+}
+#loop-in-handle  { background: var(--blue-mid); }
+#loop-out-handle { background: var(--danger); }
+
+/* Controls */
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ctrl-btn {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border: var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--brown-dark);
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.ctrl-btn:hover { background: var(--cream2); border-color: var(--brown); }
+.ctrl-btn:active { transform: scale(.94); }
+.ctrl-btn.active { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); }
+
+.play-btn {
+  width: 42px !important; height: 42px !important;
+  background: var(--brown-dark) !important;
+  border-color: var(--brown-dark) !important;
+  color: var(--cream) !important;
+  font-size: 16px !important;
+  border-radius: 50% !important;
+}
+.play-btn:hover { opacity: .85; }
+
+.sep { width: 1px; height: 20px; background: var(--tan); flex-shrink: 0; }
+
+.speed-group { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+.speed-label { font-size: 11px; color: var(--muted); margin-right: 2px; white-space: nowrap; }
+
+.speed-btn {
+  padding: 5px 8px;
+  background: transparent;
+  border: var(--border);
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all .15s;
+}
+.speed-btn:hover { border-color: var(--brown); color: var(--brown-dark); }
+.speed-btn.active { background: var(--brown-dark); border-color: var(--brown-dark); color: var(--cream); font-weight: 500; }
+
+/* Side panel */
+.side-panel {
+  width: 240px;
+  flex-shrink: 0;
+  border-left: var(--border);
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: var(--cream2);
+}
+
+.panel-section h3 {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: var(--border);
+}
+
+/* Toggle */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
+.toggle-label { font-size: 13px; color: var(--brown-dark); }
+.toggle-desc  { font-size: 11px; color: var(--muted); margin-top: 1px; font-weight: 300; font-style: italic; }
+.toggle { position: relative; width: 38px; height: 21px; flex-shrink: 0; }
+.toggle input { display: none; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--tan-light);
+  border-radius: 11px;
+  border: var(--border);
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--tan);
+  transition: left .2s, background .2s;
+  pointer-events: none;
+}
+.toggle input:checked ~ .toggle-track { background: var(--blue-light); border-color: var(--blue-mid); }
+.toggle input:checked ~ .toggle-track .toggle-thumb { left: 20px; background: var(--blue-mid); }
+
+/* Loop */
+.loop-controls { display: flex; flex-direction: column; gap: 8px; }
+.loop-row { display: flex; align-items: center; gap: 7px; }
+.loop-tag {
+  font-size: 10px; font-weight: 600; letter-spacing: .5px;
+  width: 24px; text-align: center;
+  padding: 2px 4px; border-radius: 3px; flex-shrink: 0;
+}
+.loop-tag.in  { background: var(--blue-light); color: var(--blue-mid); }
+.loop-tag.out { background: #fdecea; color: var(--danger); }
+
+.time-input {
+  flex: 1;
+  background: var(--cream);
+  border: var(--border);
+  border-radius: 5px;
+  color: var(--brown-dark);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  padding: 5px 8px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color .15s;
+  min-width: 0;
+}
+.time-input:focus { border-color: var(--blue-mid); }
+
+.set-btn {
+  padding: 5px 8px;
+  background: var(--cream);
+  border: var(--border);
+  border-radius: 5px;
+  color: var(--brown);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+  font-family: var(--font-sans);
+}
+.set-btn:hover { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); }
+
+.loop-btn-row { display: flex; gap: 6px; margin-top: 2px; }
+
+.loop-toggle-btn {
+  flex: 1;
+  padding: 7px 10px;
+  background: var(--cream);
+  border: var(--border);
+  border-radius: 6px;
+  color: var(--brown);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: center;
+  transition: all .15s;
+}
+.loop-toggle-btn:hover { background: var(--blue-light); border-color: var(--blue-mid); }
+.loop-toggle-btn.on { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); font-weight: 500; }
+
+.loop-clear-btn {
+  padding: 7px 10px;
+  background: transparent;
+  border: var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all .15s;
+}
+.loop-clear-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+/* Stats */
+.stat-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--tan-light); font-size: 12px; }
+.stat-row:last-child { border-bottom: none; }
+.stat-key { color: var(--muted); font-weight: 300; }
+.stat-val { color: var(--brown-dark); font-variant-numeric: tabular-nums; }
+
+/* Keys */
+.key-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; }
+.key-code { font-size: 11px; background: var(--cream); border: var(--border); border-radius: 4px; padding: 1px 6px; color: var(--brown); font-family: monospace; }
+.key-desc { color: var(--muted); font-weight: 300; }
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--brown-dark);
+  color: var(--cream);
+  border-radius: 20px;
+  padding: 9px 20px;
+  font-size: 13px;
+  opacity: 0;
+  transition: transform .25s, opacity .25s;
+  z-index: 999;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+#file-input { display: none; }
+
+@media (max-width: 640px) {
+  .side-panel { display: none; }
+  .home-header { padding: 36px 20px 18px; }
+  .project-item { padding: 14px 20px; }
+  .list-section-label { padding: 16px 20px 6px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════ HOME SCREEN ════════════ -->
+<div class="screen" id="screen-home">
+  <div class="home-header">
+    <div class="home-header-text">
+      <h1 id="h-title">🐶 Pawse</h1>
+      <p id="h-subtitle">Your personal dance breakdown studio</p>
+    </div>
+    <button class="lang-btn" id="lang-btn-home">中文</button>
+  </div>
+
+  <div id="empty-state">
+    <div class="empty-icon">🐶</div>
+    <div class="empty-state-text">
+      <h2 id="h-empty-title">No routines yet!</h2>
+      <p id="h-empty-sub">Drop a video and start breaking it down.</p>
+    </div>
+  </div>
+
+  <div id="project-list-wrap">
+    <div class="list-section-label" id="h-list-label">MY ROUTINES</div>
+    <div id="project-list"></div>
+  </div>
+
+  <button class="fab" id="btn-add">
+    <span>＋</span> <span id="h-fab">Add video</span>
+  </button>
+</div>
+
+<!-- ════════════ PLAYER SCREEN ════════════ -->
+<div class="screen hidden" id="screen-player">
+  <div class="player-header">
+    <button class="back-btn" id="btn-back">←</button>
+    <span id="player-title">—</span>
+    <button class="player-lang-btn" id="lang-btn-player">中文</button>
+  </div>
+
+  <div class="player-body">
+    <div class="video-col">
+
+      <div class="video-wrap" id="video-wrap">
+        <canvas id="render-canvas"></canvas>
+        <video id="vid" playsinline></video>
+        <div id="load-status"></div>
+      </div>
+
+      <div class="timeline-wrap" id="timeline-wrap" style="display:none">
+        <div class="time-row">
+          <span id="time-current">0:00</span>
+          <span class="loop-badge" id="loop-badge">⟳ looping</span>
+          <span id="time-total">0:00</span>
+        </div>
+        <div class="tl-container">
+          <div class="tl-track" id="tl-track">
+            <div class="tl-buffered" id="tl-buffered"></div>
+            <div class="loop-zone"   id="loop-zone"></div>
+            <div class="tl-played"   id="tl-played"></div>
+          </div>
+          <div class="scrub-handle"  id="scrub-handle"></div>
+          <div class="loop-handle"   id="loop-in-handle"></div>
+          <div class="loop-handle"   id="loop-out-handle"></div>
+        </div>
+      </div>
+
+      <div class="controls-row" id="controls-row" style="display:none">
+        <button class="ctrl-btn" id="btn-prev" title="−5s">⏮</button>
+        <button class="ctrl-btn play-btn" id="btn-play">▶</button>
+        <button class="ctrl-btn" id="btn-next" title="+5s">⏭</button>
+        <div class="sep"></div>
+        <button class="ctrl-btn" id="btn-mirror">🪞</button>
+        <div class="sep"></div>
+        <div class="speed-group">
+          <span class="speed-label" id="p-speed-label">speed</span>
+          <button class="speed-btn" data-speed="0.5">0.5×</button>
+          <button class="speed-btn" data-speed="0.6">0.6×</button>
+          <button class="speed-btn" data-speed="0.7">0.7×</button>
+          <button class="speed-btn" data-speed="0.8">0.8×</button>
+          <button class="speed-btn" data-speed="0.9">0.9×</button>
+          <button class="speed-btn active" data-speed="1">1×</button>
+          <button class="speed-btn" data-speed="1.25">1.25×</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Side panel -->
+    <div class="side-panel">
+
+      <div class="panel-section">
+        <h3 id="p-section-view">View</h3>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label" id="p-mirror-label">Flip horizontal</div>
+            <div class="toggle-desc"  id="p-mirror-desc">Practice like a mirror ✨</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-mirror">
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 id="p-section-loop">Loop section</h3>
+        <div class="loop-controls">
+          <div class="loop-row">
+            <span class="loop-tag in">IN</span>
+            <input type="text" class="time-input" id="loop-in-input" placeholder="—" readonly>
+            <button class="set-btn" id="btn-set-in" data-i18n="set-here">set here</button>
+          </div>
+          <div class="loop-row">
+            <span class="loop-tag out">OUT</span>
+            <input type="text" class="time-input" id="loop-out-input" placeholder="—" readonly>
+            <button class="set-btn" id="btn-set-out" data-i18n="set-here">set here</button>
+          </div>
+          <div class="loop-btn-row">
+            <button class="loop-toggle-btn" id="btn-loop-toggle">Start loop</button>
+            <button class="loop-clear-btn"  id="btn-loop-clear">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 id="p-section-info">Video info</h3>
+        <div class="stat-row"><span class="stat-key" id="p-stat-dur">Duration</span><span class="stat-val" id="si-dur">—</span></div>
+        <div class="stat-row"><span class="stat-key" id="p-stat-res">Resolution</span><span class="stat-val" id="si-res">—</span></div>
+        <div class="stat-row"><span class="stat-key" id="p-stat-spd">Speed</span><span class="stat-val" id="si-speed">1×</span></div>
+      </div>
+
+      <div class="panel-section">
+        <h3 id="p-section-keys">Shortcuts</h3>
+        <div class="key-row"><span class="key-code">Space</span><span class="key-desc" id="k-play">play / pause</span></div>
+        <div class="key-row"><span class="key-code">← →</span><span class="key-desc" id="k-seek">±5 seconds</span></div>
+        <div class="key-row"><span class="key-code">M</span><span class="key-desc" id="k-mirror">flip mirror</span></div>
+        <div class="key-row"><span class="key-code">I / O</span><span class="key-desc" id="k-inout">set in / out</span></div>
+        <div class="key-row"><span class="key-code">L</span><span class="key-desc" id="k-loop">toggle loop</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="video/*">
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════
+   i18n
+══════════════════════════════════════ */
+const I18N = {
+  en: {
+    langBtn:        '中文',
+    // home
+    title:          '🐶 Pawse',
+    subtitle:       'Your personal dance breakdown studio',
+    emptyTitle:     'No routines yet!',
+    emptySub:       'Drop a video and start breaking it down.',
+    listLabel:      'MY ROUTINES',
+    fab:            'Add video',
+    // player panel
+    sectionView:    'View',
+    mirrorLabel:    'Flip horizontal',
+    mirrorDesc:     'Practice like a mirror ✨',
+    sectionLoop:    'Loop section',
+    setHere:        'set here',
+    startLoop:      'Start loop',
+    stopLoop:       'Stop loop',
+    clearLoop:      'Clear',
+    sectionInfo:    'Video info',
+    statDur:        'Duration',
+    statRes:        'Resolution',
+    statSpeed:      'Speed',
+    sectionKeys:    'Shortcuts',
+    kPlay:          'play / pause',
+    kSeek:          '±5 seconds',
+    kMirror:        'flip mirror',
+    kInOut:         'set in / out',
+    kLoop:          'toggle loop',
+    speedLabel:     'speed',
+    loopBadge:      '⟳ looping',
+    // rename placeholder
+    renamePH:       'Rename…',
+    // meta date prefix
+    openedOn:       (d) => d,
+    neverOpened:    'Never opened',
+    // toasts
+    toastLoaded:    'Video loaded 🎬',
+    toastMirrorOn:  'Mirror on 🪞',
+    toastMirrorOff: 'Mirror off',
+    toastSpeed:     (s) => `Speed ${s}×`,
+    toastInPoint:   (t) => `In point: ${t}`,
+    toastOutPoint:  (t) => `Out point: ${t}`,
+    toastLoopOn:    'Looping ⟳',
+    toastLoopOff:   'Loop off',
+    toastLoopClear: 'Loop cleared',
+    toastDeleted:   'Deleted 🗑',
+    toastNeedIn:    'Set an in point first!',
+    toastOutBefore: 'Out point must be after in point',
+    toastNeedInOut: 'Set in/out points first',
+    toastReselect:  'Video not found — please pick it again',
+    toastStoreFail: 'Could not save video (too large?)',
+    loadingVideo:   'Loading video…',
+    loadStuck:      'Still loading…',
+    loadStuckHint:  'If this is the Files preview, it may not play video. Open the deployed link in Safari instead.',
+    loadError:      'Could not load this video',
+    loadErrorHint:  'The format may be unsupported. Try an MP4 (H.264) file.',
+  },
+  zh: {
+    langBtn:        'English',
+    // home
+    title:          '🐶 抓舞机',
+    subtitle:       '导入视频，镜像、变速、循环片段',
+    emptyTitle:     '还没有练习项目',
+    emptySub:       '点击下方按钮添加第一个视频',
+    listLabel:      '我的项目',
+    fab:            '添加视频',
+    // player panel
+    sectionView:    '画面',
+    mirrorLabel:    '水平镜像',
+    mirrorDesc:     '对镜练习模式',
+    sectionLoop:    '片段循环',
+    setHere:        '设当前',
+    startLoop:      '开启循环',
+    stopLoop:       '关闭循环',
+    clearLoop:      '清除',
+    sectionInfo:    '视频信息',
+    statDur:        '时长',
+    statRes:        '分辨率',
+    statSpeed:      '当前速度',
+    sectionKeys:    '快捷键',
+    kPlay:          '播放/暂停',
+    kSeek:          '±5 秒',
+    kMirror:        '镜像翻转',
+    kInOut:         '设入/出点',
+    kLoop:          '开关循环',
+    speedLabel:     '速度',
+    loopBadge:      '⟳ 循环中',
+    renamePH:       '重命名…',
+    openedOn:       (d) => d,
+    neverOpened:    '未打开',
+    toastLoaded:    '视频已加载 🎬',
+    toastMirrorOn:  '镜像已开启 🪞',
+    toastMirrorOff: '镜像已关闭',
+    toastSpeed:     (s) => `速度 ${s}×`,
+    toastInPoint:   (t) => `入点 ${t}`,
+    toastOutPoint:  (t) => `出点 ${t}`,
+    toastLoopOn:    '循环已开启 ⟳',
+    toastLoopOff:   '循环已关闭',
+    toastLoopClear: '循环已清除',
+    toastDeleted:   '已删除',
+    toastNeedIn:    '请先设置入点',
+    toastOutBefore: '出点须在入点之后',
+    toastNeedInOut: '请先设置入/出点',
+    toastReselect:  '没找到视频，请重新选择',
+    toastStoreFail: '视频保存失败（太大了？）',
+    loadingVideo:   '视频加载中…',
+    loadStuck:      '还在加载…',
+    loadStuckHint:  '如果你是在 Files 预览里打开的，它可能无法播放视频。请用部署后的链接在 Safari 里打开。',
+    loadError:      '无法加载这个视频',
+    loadErrorHint:  '格式可能不支持，试试 MP4 (H.264) 文件。',
+  }
+};
+
+let lang = localStorage.getItem('pawse-lang') || 'en';
+
+function t() { return I18N[lang]; }
+
+function applyI18n() {
+  const l = t();
+  // Lang buttons
+  document.getElementById('lang-btn-home').textContent   = l.langBtn;
+  document.getElementById('lang-btn-player').textContent = l.langBtn;
+  // Home
+  document.getElementById('h-title').textContent       = l.title;
+  document.getElementById('h-subtitle').textContent    = l.subtitle;
+  document.getElementById('h-empty-title').textContent = l.emptyTitle;
+  document.getElementById('h-empty-sub').textContent   = l.emptySub;
+  document.getElementById('h-list-label').textContent  = l.listLabel;
+  document.getElementById('h-fab').textContent         = l.fab;
+  // Player panel
+  document.getElementById('p-section-view').textContent  = l.sectionView;
+  document.getElementById('p-mirror-label').textContent  = l.mirrorLabel;
+  document.getElementById('p-mirror-desc').textContent   = l.mirrorDesc;
+  document.getElementById('p-section-loop').textContent  = l.sectionLoop;
+  document.getElementById('btn-set-in').textContent      = l.setHere;
+  document.getElementById('btn-set-out').textContent     = l.setHere;
+  document.getElementById('btn-loop-clear').textContent  = l.clearLoop;
+  document.getElementById('p-section-info').textContent  = l.sectionInfo;
+  document.getElementById('p-stat-dur').textContent      = l.statDur;
+  document.getElementById('p-stat-res').textContent      = l.statRes;
+  document.getElementById('p-stat-spd').textContent      = l.statSpeed;
+  document.getElementById('p-section-keys').textContent  = l.sectionKeys;
+  document.getElementById('k-play').textContent          = l.kPlay;
+  document.getElementById('k-seek').textContent          = l.kSeek;
+  document.getElementById('k-mirror').textContent        = l.kMirror;
+  document.getElementById('k-inout').textContent         = l.kInOut;
+  document.getElementById('k-loop').textContent          = l.kLoop;
+  document.getElementById('p-speed-label').textContent   = l.speedLabel;
+  document.getElementById('loop-badge').textContent      = l.loopBadge;
+  // Loop toggle button text (depends on current state)
+  const loopOn = document.getElementById('btn-loop-toggle').classList.contains('on');
+  document.getElementById('btn-loop-toggle').textContent = loopOn ? l.stopLoop : l.startLoop;
+  // Re-render home list for date strings
+  renderHome();
+}
+
+function toggleLang() {
+  lang = lang === 'en' ? 'zh' : 'en';
+  localStorage.setItem('pawse-lang', lang);
+  applyI18n();
+}
+
+document.getElementById('lang-btn-home').addEventListener('click',   toggleLang);
+document.getElementById('lang-btn-player').addEventListener('click', toggleLang);
+
+/* ══════════════════════════════════════
+   STATE & STORAGE
+══════════════════════════════════════ */
+let projects = [];
+let currentProject = null;
+let currentFileURL  = null;
+const STORAGE_KEY = 'pawse-projects';
+
+function saveProjects() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects.map(p => ({ id:p.id, name:p.name, lastOpened:p.lastOpened })))); } catch(e) {}
+}
+function loadProjects() {
+  try { const r = localStorage.getItem(STORAGE_KEY); if (r) projects = JSON.parse(r); } catch(e) { projects = []; }
+}
+
+/* ── IndexedDB: stores actual video files (Blobs) so routines persist ── */
+const DB_NAME = 'pawse-db';
+const DB_STORE = 'videos';
+let _dbPromise = null;
+
+function openDB() {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return _dbPromise;
+}
+
+async function saveVideo(id, blob) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).put(blob, id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getVideo(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteVideo(id) {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
+
+/* ══════════════════════════════════════
+   HOME SCREEN
+══════════════════════════════════════ */
+function renderHome() {
+  const emptyState   = document.getElementById('empty-state');
+  const projListWrap = document.getElementById('project-list-wrap');
+  const projList     = document.getElementById('project-list');
+
+  if (projects.length === 0) {
+    emptyState.style.display   = 'flex';
+    projListWrap.style.display = 'none';
+    return;
+  }
+  emptyState.style.display   = 'none';
+  projListWrap.style.display = 'block';
+  projList.innerHTML = '';
+
+  const sorted = [...projects].sort((a,b) => (b.lastOpened||0) - (a.lastOpened||0));
+  sorted.forEach(proj => {
+    const item = document.createElement('div');
+    item.className = 'project-item';
+    item.dataset.id = proj.id;
+    const dateStr = proj.lastOpened
+      ? new Date(proj.lastOpened).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { month:'short', day:'numeric', year:'numeric' })
+      : t().neverOpened;
+    item.innerHTML = `
+      <div class="project-thumb">🎬</div>
+      <div class="project-info">
+        <div class="project-name" data-name="${proj.id}">${proj.name}</div>
+        <div class="project-meta">${dateStr}</div>
+      </div>
+      <div class="project-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" onclick="startRename('${proj.id}')">✏️</button>
+        <button class="icon-btn danger" onclick="deleteProject('${proj.id}')">🗑</button>
+      </div>
+    `;
+    item.addEventListener('click', () => openProject(proj.id));
+    projList.appendChild(item);
+  });
+}
+
+function startRename(id) {
+  const nameEl = document.querySelector(`[data-name="${id}"]`);
+  if (!nameEl) return;
+  const proj = projects.find(p => p.id === id);
+  const input = document.createElement('input');
+  input.className = 'project-name-input';
+  input.value = proj.name;
+  input.placeholder = t().renamePH;
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+  function commit() {
+    proj.name = input.value.trim() || proj.name;
+    saveProjects(); renderHome();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = proj.name; input.blur(); }
+  });
+}
+
+function deleteProject(id) {
+  projects = projects.filter(p => p.id !== id);
+  saveProjects();
+  deleteVideo(id);
+  renderHome();
+  showToast(t().toastDeleted);
+}
+
+async function openProject(id) {
+  const proj = projects.find(p => p.id === id);
+  if (!proj) return;
+  currentProject = proj;
+  document.getElementById('player-title').textContent = proj.name;
+
+  // Try to load the stored video first
+  let blob = null;
+  try { blob = await getVideo(id); } catch(e) {}
+
+  if (blob) {
+    proj.lastOpened = Date.now();
+    saveProjects();
+    loadVideoFile(blob);
+  } else {
+    // Video missing (e.g. cleared by browser) — ask user to re-link
+    showToast(t().toastReselect);
+    fileInput.dataset.mode = 'relink';
+    fileInput.dataset.relinkId = id;
+    fileInput.click();
+  }
+}
+
+/* ══════════════════════════════════════
+   FILE INPUT
+══════════════════════════════════════ */
+document.getElementById('btn-add').addEventListener('click', () => {
+  fileInput.dataset.mode = 'new';
+  fileInput.click();
+});
+
+const fileInput = document.getElementById('file-input');
+fileInput.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  fileInput.value = '';
+  const mode = fileInput.dataset.mode;
+
+  if (mode === 'new') {
+    const proj = { id: uid(), name: file.name.replace(/\.[^.]+$/, ''), lastOpened: Date.now() };
+    projects.push(proj);
+    currentProject = proj;
+    document.getElementById('player-title').textContent = proj.name;
+    try { await saveVideo(proj.id, file); } catch(err) { showToast(t().toastStoreFail); }
+    saveProjects();
+  } else if (mode === 'relink') {
+    const id = fileInput.dataset.relinkId;
+    const proj = projects.find(p => p.id === id);
+    if (proj) {
+      proj.lastOpened = Date.now();
+      currentProject = proj;
+      try { await saveVideo(id, file); } catch(err) {}
+      saveProjects();
+    }
+  }
+  loadVideoFile(file);
+});
+
+/* ══════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════ */
+function goToPlayer() {
+  document.getElementById('screen-home').classList.add('hidden');
+  document.getElementById('screen-player').classList.remove('hidden');
+}
+
+function goToHome() {
+  vid.pause();
+  vid.removeAttribute('src');
+  vid.load();
+  vid.classList.remove('native-visible', 'native-mirrored');
+  if (currentFileURL) { URL.revokeObjectURL(currentFileURL); currentFileURL = null; }
+  canvas.style.display = 'none';
+  document.getElementById('load-status').className = '';
+  document.getElementById('timeline-wrap').style.display = 'none';
+  document.getElementById('controls-row').style.display  = 'none';
+  btnPlay.textContent = '▶';
+  Object.assign(ps, { mirrored:false, speed:1, loopIn:null, loopOut:null, loopActive:false, duration:0 });
+  toggleMirror.checked = false;
+  btnMirror.classList.remove('active');
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b.dataset.speed === '1'));
+  hideLoopZone();
+  document.getElementById('loop-badge').classList.remove('show');
+  const lt = document.getElementById('btn-loop-toggle');
+  lt.textContent = t().startLoop; lt.classList.remove('on');
+  document.getElementById('loop-in-input').value  = '';
+  document.getElementById('loop-out-input').value = '';
+  document.getElementById('screen-player').classList.add('hidden');
+  document.getElementById('screen-home').classList.remove('hidden');
+  renderHome();
+}
+
+document.getElementById('btn-back').addEventListener('click', goToHome);
+
+/* ══════════════════════════════════════
+   VIDEO
+══════════════════════════════════════ */
+const vid    = document.getElementById('vid');
+const canvas = document.getElementById('render-canvas');
+const ctx    = canvas.getContext('2d');
+let rafId    = null;
+
+const ps = { mirrored:false, speed:1, loopIn:null, loopOut:null, loopActive:false, duration:0, draggingHandle:null, scrubbing:false };
+
+function loadVideoFile(file) {
+  if (currentFileURL) URL.revokeObjectURL(currentFileURL);
+  currentFileURL = URL.createObjectURL(file);
+
+  // Show player UI immediately
+  goToPlayer();
+  canvas.style.display = 'none';        // canvas no longer used for display
+  vid.classList.add('native-visible');  // show the real <video> element
+  document.getElementById('timeline-wrap').style.display = 'flex';
+  document.getElementById('controls-row').style.display  = 'flex';
+
+  // Show loading spinner
+  const ls = document.getElementById('load-status');
+  ls.className = 'show';
+  ls.innerHTML = `<div class="ls-dog">🐶</div><div>${t().loadingVideo}</div>`;
+
+  vid.src = currentFileURL;
+  vid.load();
+  applyMirrorClass();
+
+  let initialised = false;
+  function onReady() {
+    if (initialised) return;
+    if (!isFinite(vid.duration) || vid.duration === 0) return; // not ready yet
+    initialised = true;
+    clearTimeout(stuckTimer);
+    document.getElementById('load-status').className = ''; // hide
+    ps.duration = vid.duration;
+    document.getElementById('time-total').textContent = fmtShort(vid.duration);
+    document.getElementById('si-dur').textContent     = fmtShort(vid.duration);
+    document.getElementById('si-res').textContent     = (vid.videoWidth && vid.videoHeight) ? `${vid.videoWidth}×${vid.videoHeight}` : '—';
+    showToast(t().toastLoaded);
+  }
+
+  vid.addEventListener('loadedmetadata', onReady);
+  vid.addEventListener('loadeddata',     onReady);
+  vid.addEventListener('canplay',        onReady);
+  // Real error (truly unsupported / corrupt file)
+  vid.addEventListener('error', () => {
+    if (initialised) return;
+    clearTimeout(stuckTimer);
+    const ls = document.getElementById('load-status');
+    ls.className = 'show';
+    ls.innerHTML = `<div>${t().loadError}</div><div class="ls-hint">${t().loadErrorHint}</div>`;
+  }, { once:true });
+  // Stuck hint
+  const stuckTimer = setTimeout(() => {
+    if (initialised) return;
+    const ls = document.getElementById('load-status');
+    ls.className = 'show';
+    ls.innerHTML = `<div class="ls-dog">🐶</div><div>${t().loadStuck}</div><div class="ls-hint">${t().loadStuckHint}</div>`;
+  }, 4000);
+  // Last-resort poll
+  let tries = 0;
+  const poll = setInterval(() => {
+    if (initialised || tries++ > 60) { clearInterval(poll); return; }
+    onReady();
+  }, 100);
+}
+
+// Canvas display removed — native <video> handles display now.
+// These stubs keep existing call sites working without change.
+function drawFrame() {}
+function renderOnce() {}
+function renderLoop() {}
+
+// Mirror via CSS transform on the native video element
+function applyMirrorClass() {
+  vid.classList.toggle('native-mirrored', ps.mirrored);
+}
+
+/* Timeline */
+const tlTrack    = document.getElementById('tl-track');
+const tlPlayed   = document.getElementById('tl-played');
+const tlBuffered = document.getElementById('tl-buffered');
+const loopZone   = document.getElementById('loop-zone');
+const scrubHandle = document.getElementById('scrub-handle');
+const loopInH    = document.getElementById('loop-in-handle');
+const loopOutH   = document.getElementById('loop-out-handle');
+
+function timeToPct(t) { return ps.duration > 0 ? (t/ps.duration)*100 : 0; }
+function posToTime(x) { const r = tlTrack.getBoundingClientRect(); return Math.max(0,Math.min(1,(x-r.left)/r.width))*ps.duration; }
+
+function updateTimeline() {
+  const pct = timeToPct(vid.currentTime);
+  tlPlayed.style.width = pct+'%';
+  scrubHandle.style.left = pct+'%';
+  document.getElementById('time-current').textContent = fmtShort(vid.currentTime);
+  if (vid.buffered.length > 0) tlBuffered.style.width = timeToPct(vid.buffered.end(vid.buffered.length-1))+'%';
+}
+
+function updateLoopZone() {
+  const inn = ps.loopIn??0, out = ps.loopOut??ps.duration;
+  const l = timeToPct(inn), w = timeToPct(out)-l;
+  loopZone.style.cssText  = `left:${l}%;width:${w}%;display:block`;
+  loopInH.style.cssText   = `left:${l}%;display:block`;
+  loopOutH.style.cssText  = `left:${l+w}%;display:block`;
+}
+
+function hideLoopZone() { loopZone.style.display = loopInH.style.display = loopOutH.style.display = 'none'; }
+
+vid.addEventListener('timeupdate', () => {
+  updateTimeline();
+  if (ps.loopActive && ps.loopIn != null) {
+    const out = ps.loopOut ?? ps.duration;
+    if (vid.currentTime >= out) vid.currentTime = ps.loopIn;
+  }
+});
+
+/* Scrubbing */
+function startDrag(type, e) { e.preventDefault(); ps.draggingHandle = type; }
+scrubHandle.addEventListener('mousedown', e => startDrag('scrub', e));
+loopInH.addEventListener('mousedown',     e => startDrag('loopIn', e));
+loopOutH.addEventListener('mousedown',    e => startDrag('loopOut', e));
+scrubHandle.addEventListener('touchstart', e => startDrag('scrub', e), {passive:false});
+loopInH.addEventListener('touchstart',     e => startDrag('loopIn', e), {passive:false});
+loopOutH.addEventListener('touchstart',    e => startDrag('loopOut', e), {passive:false});
+
+tlTrack.addEventListener('click', e => { if (!ps.duration) return; vid.currentTime = posToTime(e.clientX); updateTimeline(); renderOnce(); });
+
+function onDragMove(x) {
+  const t = posToTime(x);
+  if (ps.draggingHandle === 'scrub') { vid.currentTime = t; ps.scrubbing = true; updateTimeline(); renderOnce(); }
+  else if (ps.draggingHandle === 'loopIn')  { ps.loopIn = Math.max(0, Math.min(t,(ps.loopOut??ps.duration)-0.1)); document.getElementById('loop-in-input').value = fmt(ps.loopIn); updateLoopZone(); }
+  else if (ps.draggingHandle === 'loopOut') { ps.loopOut = Math.min(ps.duration, Math.max(t,(ps.loopIn??0)+0.1)); document.getElementById('loop-out-input').value = fmt(ps.loopOut); updateLoopZone(); }
+}
+
+document.addEventListener('mousemove', e => { if (ps.draggingHandle) onDragMove(e.clientX); });
+document.addEventListener('touchmove', e => { if (ps.draggingHandle) onDragMove(e.touches[0].clientX); }, {passive:false});
+document.addEventListener('mouseup',   () => { ps.draggingHandle = null; ps.scrubbing = false; });
+document.addEventListener('touchend',  () => { ps.draggingHandle = null; ps.scrubbing = false; });
+
+/* Playback controls */
+const btnPlay   = document.getElementById('btn-play');
+const btnMirror = document.getElementById('btn-mirror');
+const toggleMirror = document.getElementById('toggle-mirror');
+
+function togglePlay() {
+  if (vid.paused) { vid.play(); btnPlay.textContent = '⏸'; }
+  else { vid.pause(); btnPlay.textContent = '▶'; renderOnce(); }
+}
+
+btnPlay.addEventListener('click', togglePlay);
+vid.addEventListener('ended', () => { btnPlay.textContent = '▶'; renderOnce(); });
+document.getElementById('btn-prev').addEventListener('click', () => { vid.currentTime = Math.max(0, vid.currentTime-5); renderOnce(); });
+document.getElementById('btn-next').addEventListener('click', () => { vid.currentTime = Math.min(ps.duration, vid.currentTime+5); renderOnce(); });
+
+function setMirror(on) {
+  ps.mirrored = on;
+  toggleMirror.checked = on;
+  btnMirror.classList.toggle('active', on);
+  applyMirrorClass();
+  showToast(on ? t().toastMirrorOn : t().toastMirrorOff);
+}
+btnMirror.addEventListener('click', () => setMirror(!ps.mirrored));
+toggleMirror.addEventListener('change', () => setMirror(toggleMirror.checked));
+
+document.querySelectorAll('.speed-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sp = parseFloat(btn.dataset.speed);
+    vid.playbackRate = sp; ps.speed = sp;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b===btn));
+    document.getElementById('si-speed').textContent = sp+'×';
+    showToast(t().toastSpeed(sp));
+  });
+});
+
+/* Loop */
+function applyLoop() {
+  document.getElementById('loop-in-input').value  = ps.loopIn  != null ? fmt(ps.loopIn)  : '';
+  document.getElementById('loop-out-input').value = ps.loopOut != null ? fmt(ps.loopOut) : '';
+  if (ps.loopIn != null || ps.loopOut != null) updateLoopZone(); else hideLoopZone();
+  const on = ps.loopActive && ps.loopIn != null;
+  document.getElementById('loop-badge').classList.toggle('show', on);
+  document.getElementById('loop-badge').textContent = t().loopBadge;
+  const lt = document.getElementById('btn-loop-toggle');
+  lt.textContent = on ? t().stopLoop : t().startLoop;
+  lt.classList.toggle('on', on);
+}
+
+document.getElementById('btn-set-in').addEventListener('click', () => {
+  ps.loopIn = vid.currentTime;
+  if (ps.loopOut != null && ps.loopOut <= ps.loopIn) ps.loopOut = null;
+  applyLoop(); showToast(t().toastInPoint(fmt(ps.loopIn)));
+});
+
+document.getElementById('btn-set-out').addEventListener('click', () => {
+  if (ps.loopIn == null) { showToast(t().toastNeedIn); return; }
+  if (vid.currentTime <= ps.loopIn) { showToast(t().toastOutBefore); return; }
+  ps.loopOut = vid.currentTime;
+  applyLoop(); showToast(t().toastOutPoint(fmt(ps.loopOut)));
+});
+
+document.getElementById('btn-loop-toggle').addEventListener('click', () => {
+  if (ps.loopIn == null) { showToast(t().toastNeedInOut); return; }
+  ps.loopActive = !ps.loopActive;
+  if (ps.loopActive) { vid.currentTime = ps.loopIn; if (vid.paused) togglePlay(); }
+  applyLoop(); showToast(ps.loopActive ? t().toastLoopOn : t().toastLoopOff);
+});
+
+document.getElementById('btn-loop-clear').addEventListener('click', () => {
+  ps.loopIn = ps.loopOut = null; ps.loopActive = false;
+  applyLoop(); hideLoopZone(); showToast(t().toastLoopClear);
+});
+
+/* Keyboard */
+document.addEventListener('keydown', e => {
+  if (document.activeElement.tagName.toLowerCase() === 'input') return;
+  if (document.getElementById('screen-player').classList.contains('hidden')) return;
+  switch(e.key) {
+    case ' ':          e.preventDefault(); if (ps.duration) togglePlay(); break;
+    case 'ArrowLeft':  e.preventDefault(); vid.currentTime = Math.max(0, vid.currentTime-5); renderOnce(); break;
+    case 'ArrowRight': e.preventDefault(); vid.currentTime = Math.min(ps.duration, vid.currentTime+5); renderOnce(); break;
+    case 'm': case 'M': setMirror(!ps.mirrored); break;
+    case 'i': case 'I': if (ps.duration) document.getElementById('btn-set-in').click(); break;
+    case 'o': case 'O': if (ps.duration) document.getElementById('btn-set-out').click(); break;
+    case 'l': case 'L': if (ps.duration) document.getElementById('btn-loop-toggle').click(); break;
+  }
+});
+
+/* Resize */
+new ResizeObserver(() => { if (ps.duration) renderOnce(); }).observe(document.getElementById('video-wrap'));
+
+/* Helpers */
+function fmt(s) { if (!isFinite(s)) return '—'; const m=Math.floor(s/60),sec=s%60; return `${m}:${sec<10?'0':''}${sec.toFixed(1)}`; }
+function fmtShort(s) { if (!isFinite(s)) return '0:00'; const m=Math.floor(s/60),sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
+function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2000); }
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+
+/* Init */
+loadProjects();
+applyI18n();
+
+/* PWA service worker — only on https (skips file:// and preview to avoid errors) */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration skipped:', err));
+  });
+}
+</script>
+</body>
+</html>
