@@ -1790,19 +1790,60 @@ loopOutH.addEventListener('touchstart',    e => startDrag('loopOut', e), {passiv
 
 tlTrack.addEventListener('click', e => { if (!ps.duration) return; vid.currentTime = posToTime(e.clientX); updateTimeline(); renderOnce(); });
 
+let _pendingSeek = null;
+let _seekScheduled = false;
+function scheduleSeek(t) {
+  _pendingSeek = t;
+  if (_seekScheduled) return;
+  _seekScheduled = true;
+  requestAnimationFrame(() => {
+    _seekScheduled = false;
+    // Only seek if the video is ready, and skip if a seek is still in progress
+    if (_pendingSeek != null && !vid.seeking) {
+      try { vid.currentTime = _pendingSeek; } catch(e) {}
+      _pendingSeek = null;
+    } else if (_pendingSeek != null) {
+      // video still seeking — try again next frame
+      const again = _pendingSeek; _pendingSeek = null; scheduleSeek(again);
+    }
+  });
+}
+
 function onDragMove(x) {
   const t = posToTime(x);
-  if (ps.draggingHandle === 'scrub') { vid.currentTime = t; ps.scrubbing = true; updateTimeline(); renderOnce(); }
+  if (ps.draggingHandle === 'scrub') {
+    ps.scrubbing = true;
+    // update UI immediately, seek throttled
+    const pct = timeToPct(t);
+    tlPlayed.style.width = pct+'%';
+    scrubHandle.style.left = pct+'%';
+    document.getElementById('time-current').textContent = fmtShort(t);
+    scheduleSeek(t);
+  }
   else if (ps.draggingHandle === 'loopIn')  {
     ps.loopIn = Math.max(0, Math.min(t,(ps.loopOut??ps.duration)-0.1));
-    vid.currentTime = ps.loopIn;       // preview the frame at A
-    applyLoop();
+    applyLoop();                 // moves the A handle + time label immediately
+    scheduleSeek(ps.loopIn);     // preview frame, throttled
   }
   else if (ps.draggingHandle === 'loopOut') {
     ps.loopOut = Math.min(ps.duration, Math.max(t,(ps.loopIn??0)+0.1));
-    vid.currentTime = ps.loopOut;      // preview the frame at B
     applyLoop();
+    scheduleSeek(ps.loopOut);
   }
+}
+
+function endDrag() {
+  if (!ps.draggingHandle) return;
+  const h = ps.draggingHandle;
+  ps.draggingHandle = null;
+  ps.scrubbing = false;
+  // commit a final, accurate seek to where the handle ended up
+  let target = null;
+  if (h === 'scrub') target = vid.currentTime;
+  else if (h === 'loopIn')  { target = ps.loopIn;  applyLoop(); }
+  else if (h === 'loopOut') { target = ps.loopOut; applyLoop(); }
+  if (target != null) { try { vid.currentTime = target; } catch(e) {} }
+  _pendingSeek = null;
 }
 
 document.addEventListener('mousemove', e => { if (ps.draggingHandle) onDragMove(e.clientX); });
@@ -1812,8 +1853,9 @@ document.addEventListener('touchmove', e => {
     onDragMove(e.touches[0].clientX);
   }
 }, {passive:false});
-document.addEventListener('mouseup',   () => { if (ps.draggingHandle && ps.draggingHandle !== 'scrub') applyLoop(); ps.draggingHandle = null; ps.scrubbing = false; });
-document.addEventListener('touchend',  () => { if (ps.draggingHandle && ps.draggingHandle !== 'scrub') applyLoop(); ps.draggingHandle = null; ps.scrubbing = false; });
+document.addEventListener('mouseup',  endDrag);
+document.addEventListener('touchend', endDrag);
+document.addEventListener('touchcancel', endDrag);   // iOS sometimes fires cancel instead of end
 
 /* Playback controls */
 const btnPlay   = document.getElementById('btn-play');
