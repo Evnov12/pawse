@@ -724,7 +724,9 @@ body.fs-lock { overflow: hidden; }
   transition: transform .25s, opacity .25s;
   z-index: 999;
   pointer-events: none;
-  white-space: nowrap;
+  max-width: min(86vw, 340px);
+  text-align: center;
+  line-height: 1.45;
   box-shadow: 0 4px 16px rgba(80, 100, 115, 0.3);
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -985,6 +987,7 @@ const I18N = {
     loadError:      'Could not load this video',
     loadErrorHint:  'The format may be unsupported. Try an MP4 (H.264) file.',
     fullscreenUnsupported: 'Fullscreen not supported here',
+    fsMirrorNote: 'Mirror is on, using in-app fullscreen. Turn off mirror for true fullscreen + rotation.',
   },
   zh: {
     langBtn:        'English',
@@ -1040,6 +1043,7 @@ const I18N = {
     loadError:      '无法加载这个视频',
     loadErrorHint:  '格式可能不支持，试试 MP4 (H.264) 文件。',
     fullscreenUnsupported: '此环境不支持全屏',
+    fsMirrorNote: '镜像开启中，使用应用内全屏。关闭镜像可用真·全屏 + 自动旋转。',
   }
 };
 
@@ -1349,6 +1353,33 @@ function loadVideoFile(file) {
   if (currentFileURL) URL.revokeObjectURL(currentFileURL);
   currentFileURL = URL.createObjectURL(file);
 
+  // ── Reset everything to a clean state for the new video ──
+  ps.duration = 0;
+  ps.loopIn = ps.loopOut = null;
+  ps.loopActive = false;
+  ps.scrubbing = false;
+  ps.draggingHandle = null;
+  // timeline visuals back to start
+  document.getElementById('tl-played').style.width   = '0%';
+  document.getElementById('tl-buffered').style.width = '0%';
+  document.getElementById('scrub-handle').style.left = '0%';
+  document.getElementById('time-current').textContent = '0:00';
+  document.getElementById('time-total').textContent   = '0:00';
+  // loop UI
+  hideLoopZone();
+  document.getElementById('loop-in-input').value  = '';
+  document.getElementById('loop-out-input').value = '';
+  document.getElementById('loop-badge').classList.remove('show');
+  const lt = document.getElementById('btn-loop-toggle');
+  lt.textContent = t().startLoop; lt.classList.remove('on');
+  // play icon back to "play"
+  setPlayIcon(false);
+  // reset speed to 1×
+  ps.speed = 1;
+  vid.playbackRate = 1;
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b.dataset.speed === '1'));
+  document.getElementById('si-speed').textContent = '1×';
+
   // Show player UI immediately
   goToPlayer();
   canvas.style.display = 'none';        // canvas no longer used for display
@@ -1393,9 +1424,11 @@ function loadVideoFile(file) {
     clearTimeout(stuckTimer);
     document.getElementById('load-status').className = ''; // hide
     ps.duration = vid.duration;
+    try { vid.currentTime = 0; } catch(e) {}   // always start from the beginning
     document.getElementById('time-total').textContent = fmtShort(vid.duration);
     document.getElementById('si-dur').textContent     = fmtShort(vid.duration);
     document.getElementById('si-res').textContent     = (vid.videoWidth && vid.videoHeight) ? `${vid.videoWidth}×${vid.videoHeight}` : '—';
+    updateTimeline();
     showToast(t().toastLoaded);
   }
 
@@ -1524,14 +1557,32 @@ const btnFullscreen = document.getElementById('btn-fullscreen');
 const videoWrap = document.getElementById('video-wrap');
 
 function toggleFullscreen() {
-  // Prefer real Fullscreen API on browsers that support it for the container
-  // (keeps our CSS mirror transform working).
-  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-  if (videoWrap.requestFullscreen && !videoWrap.classList.contains('css-fullscreen')) {
-    if (fsEl) document.exitFullscreen();
-    else videoWrap.requestFullscreen().catch(() => cssFullscreen());
+  // Already in CSS fullscreen → exit it
+  if (videoWrap.classList.contains('css-fullscreen')) { cssFullscreen(); return; }
+  // Already in real fullscreen → exit it
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    return;
+  }
+
+  // Mirror ON → must use CSS pseudo-fullscreen to keep the flip working
+  if (ps.mirrored) {
+    showToast(t().fsMirrorNote, 3800);
+    cssFullscreen();
+    return;
+  }
+
+  // Mirror OFF → use real/native fullscreen for a true immersive view
+  if (videoWrap.requestFullscreen) {
+    videoWrap.requestFullscreen().catch(() => cssFullscreen());
+  } else if (videoWrap.webkitRequestFullscreen) {
+    videoWrap.webkitRequestFullscreen();
+  } else if (vid.webkitEnterFullscreen) {
+    // iPhone Safari: only the <video> element can go truly fullscreen
+    // (this gives real fullscreen + auto-rotate + pinch-zoom)
+    vid.webkitEnterFullscreen();
   } else {
-    // iOS Safari path: CSS pseudo-fullscreen so the mirror transform stays ours
     cssFullscreen();
   }
 }
@@ -1542,6 +1593,9 @@ function cssFullscreen() {
 }
 
 btnFullscreen.addEventListener('click', toggleFullscreen);
+// Sync play/pause icon when iOS native fullscreen closes
+vid.addEventListener('webkitendfullscreen', () => { setPlayIcon(!vid.paused); });
+vid.addEventListener('webkitbeginfullscreen', () => { setPlayIcon(!vid.paused); });
 document.getElementById('fs-exit').addEventListener('click', () => {
   if (videoWrap.classList.contains('css-fullscreen')) cssFullscreen();
   else if (document.fullscreenElement) document.exitFullscreen();
@@ -1636,7 +1690,7 @@ new ResizeObserver(() => { if (ps.duration) renderOnce(); }).observe(document.ge
 /* Helpers */
 function fmt(s) { if (!isFinite(s)) return '—'; const m=Math.floor(s/60),sec=s%60; return `${m}:${sec<10?'0':''}${sec.toFixed(1)}`; }
 function fmtShort(s) { if (!isFinite(s)) return '0:00'; const m=Math.floor(s/60),sec=Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
-function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2000); }
+function showToast(msg, ms) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'), ms || 2000); }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
 
 /* Init */
