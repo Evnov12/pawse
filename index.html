@@ -313,8 +313,8 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 14px;
-  gap: 10px;
+  padding: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -325,7 +325,7 @@ html, body {
   border: var(--border);
   position: relative;
   overflow: hidden;
-  min-height: 180px;
+  min-height: 300px;
 }
 
 /* CSS pseudo-fullscreen (works on iOS, keeps our mirror transform) */
@@ -373,6 +373,56 @@ body.fs-lock { overflow: hidden; }
 }
 #vid.native-visible { display: block; }
 #vid.native-mirrored { transform: scaleX(-1); }
+
+/* Center play/pause overlay */
+.overlay-play {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px; height: 64px;
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(26,20,16,0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1.5px solid rgba(250,247,239,0.4);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  z-index: 6;
+  transition: opacity .3s, transform .15s, background .15s;
+  padding-left: 3px; /* optical centering for play triangle */
+}
+.video-wrap.has-video .overlay-play { display: flex; }
+.overlay-play:active { transform: translate(-50%, -50%) scale(0.92); }
+/* Auto-fade when playing; reappears on tap (toggled via .controls-hidden) */
+.video-wrap.playing.controls-hidden .overlay-play { opacity: 0; pointer-events: none; }
+.overlay-play .icon-pause { padding-right: 3px; }
+
+/* Top-right overlay tools */
+.overlay-tools {
+  position: absolute;
+  top: 10px; right: 10px;
+  display: none;
+  gap: 8px;
+  z-index: 7;
+}
+.video-wrap.has-video .overlay-tools { display: flex; }
+.overlay-btn {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(26,20,16,0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1.5px solid rgba(250,247,239,0.35);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  font-size: 17px;
+  transition: transform .12s, background .15s;
+}
+.overlay-btn:active { transform: scale(0.9); }
+.overlay-btn.active { background: rgba(123,175,196,0.75); border-color: #fff; }
 
 #load-status {
   position: absolute; inset: 0;
@@ -435,37 +485,54 @@ body.fs-lock { overflow: hidden; }
 }
 
 /* Timeline */
-.timeline-wrap { display: flex; flex-direction: column; gap: 4px; }
+.timeline-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 6;
+  padding: 24px 14px 10px;
+  background: linear-gradient(to top, rgba(20,16,12,0.55), rgba(20,16,12,0));
+  transition: opacity .3s, transform .3s;
+}
+/* auto-hide with the other controls while playing */
+.video-wrap.playing.controls-hidden .timeline-wrap {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
 
 .time-row {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--muted);
+  color: rgba(255,255,255,0.85);
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 
-.loop-badge { font-size: 11px; color: var(--blue-mid); display: none; }
+.loop-badge { font-size: 11px; color: var(--blue-light); display: none; }
 .loop-badge.show { display: block; }
 
-.tl-container { position: relative; height: 36px; }
+.tl-container { position: relative; height: 30px; }
 
 .tl-track {
   position: absolute;
   top: 14px; left: 0; right: 0;
   height: 8px;
-  background: var(--tan-light);
+  background: rgba(255,255,255,0.28);
   border-radius: 4px;
   cursor: pointer;
   overflow: hidden;
 }
 
-.tl-buffered { position: absolute; left:0; top:0; height:100%; background: var(--tan); border-radius:4px; pointer-events:none; }
-.tl-played   { position: absolute; left:0; top:0; height:100%; background: var(--brown); border-radius:4px; pointer-events:none; }
+.tl-buffered { position: absolute; left:0; top:0; height:100%; background: rgba(255,255,255,0.35); border-radius:4px; pointer-events:none; }
+.tl-played   { position: absolute; left:0; top:0; height:100%; background: var(--blue); border-radius:4px; pointer-events:none; }
 
 .loop-zone {
   position: absolute; top:0; height:100%;
-  background: rgba(168,200,216,0.5);
+  background: rgba(168,200,216,0.45);
   border-radius: 4px;
   pointer-events: none;
   display: none;
@@ -548,13 +615,54 @@ body.fs-lock { overflow: hidden; }
 .sep { width: 1px; height: 22px; background: var(--tan); flex-shrink: 0; }
 
 /* Speed row — centered under the controls */
+/* Tool trigger row (collapsed speed / loop) */
+.tool-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.tool-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--cream);
+  border: var(--border);
+  border-radius: 20px;
+  color: var(--brown-dark);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all .15s;
+}
+.tool-trigger:active { transform: scale(.96); }
+.tool-trigger.open { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); }
+.tool-trigger.loop-active { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); }
+.tool-trigger svg { display: block; }
+
+/* Popover panels */
+.tool-pop {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--cream2);
+  border: var(--border);
+  border-radius: 12px;
+  animation: pop-in .18s ease;
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .speed-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   flex-wrap: wrap;
-  margin-top: 2px;
 }
 .speed-group { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .speed-label { font-size: 11px; color: var(--muted); margin-right: 2px; white-space: nowrap; }
@@ -572,6 +680,46 @@ body.fs-lock { overflow: hidden; }
 }
 .speed-btn:hover { border-color: var(--brown); color: var(--brown-dark); }
 .speed-btn.active { background: var(--brown-dark); border-color: var(--brown-dark); color: var(--cream); font-weight: 500; }
+
+/* AB loop bar */
+.loop-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.loop-bar-label { font-size: 11px; color: var(--muted); margin-right: 2px; white-space: nowrap; }
+
+.loop-ab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 11px;
+  background: transparent;
+  border: var(--border);
+  border-radius: 7px;
+  color: var(--brown-dark);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.loop-ab-btn:active { transform: scale(.94); }
+.loop-ab-btn .ab-letter { font-weight: 700; font-size: 13px; }
+.loop-ab-btn.set-a .ab-letter { color: var(--blue-mid); }
+.loop-ab-btn.set-b .ab-letter { color: var(--danger); }
+.loop-ab-btn .ab-time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11px; }
+.loop-ab-btn.set-a.has-point { background: var(--blue-light); border-color: var(--blue-mid); }
+.loop-ab-btn.set-b.has-point { background: #fdecea; border-color: var(--danger); }
+.loop-ab-btn.set-a.has-point .ab-time,
+.loop-ab-btn.set-b.has-point .ab-time { color: var(--brown-dark); }
+
+.loop-ab-btn.loop-go { color: var(--brown); font-weight: 500; }
+.loop-ab-btn.loop-go.on { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-mid); }
+.loop-ab-btn.loop-x { color: var(--muted); padding: 6px 9px; }
+.loop-ab-btn.loop-x:hover { color: var(--danger); border-color: var(--danger); }
 
 /* Side panel */
 .side-panel {
@@ -786,71 +934,79 @@ body.fs-lock { overflow: hidden; }
         <canvas id="render-canvas"></canvas>
         <video id="vid" playsinline></video>
         <div id="load-status"></div>
+
+        <!-- Center play/pause overlay -->
+        <button class="overlay-play" id="btn-play" aria-label="play/pause">
+          <svg class="icon-play" viewBox="0 0 24 24" width="32" height="32" fill="currentColor" stroke="none">
+            <path d="M7 4.5 L19 12 L7 19.5 Z"/>
+          </svg>
+          <svg class="icon-pause" viewBox="0 0 24 24" width="32" height="32" fill="currentColor" stroke="none" style="display:none">
+            <rect x="6" y="5" width="4" height="14" rx="1.2"/>
+            <rect x="14" y="5" width="4" height="14" rx="1.2"/>
+          </svg>
+        </button>
+
+        <!-- Top-right overlay buttons -->
+        <div class="overlay-tools">
+          <button class="overlay-btn" id="btn-mirror" title="mirror">🪞</button>
+          <button class="overlay-btn" id="btn-fullscreen" title="fullscreen" aria-label="fullscreen">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 8 V4 H8 M16 4 H20 V8 M20 16 V20 H16 M8 20 H4 V16"/>
+            </svg>
+          </button>
+        </div>
+
         <button class="fs-exit" id="fs-exit" aria-label="exit fullscreen">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 6 L18 18 M18 6 L6 18"/>
           </svg>
         </button>
-      </div>
 
-      <div class="timeline-wrap" id="timeline-wrap" style="display:none">
-        <div class="time-row">
-          <span id="time-current">0:00</span>
-          <span class="loop-badge" id="loop-badge">⟳ looping</span>
-          <span id="time-total">0:00</span>
-        </div>
-        <div class="tl-container">
-          <div class="tl-track" id="tl-track">
-            <div class="tl-buffered" id="tl-buffered"></div>
-            <div class="loop-zone"   id="loop-zone"></div>
-            <div class="tl-played"   id="tl-played"></div>
+        <!-- Bottom timeline overlay -->
+        <div class="timeline-wrap" id="timeline-wrap" style="display:none">
+          <div class="time-row">
+            <span id="time-current">0:00</span>
+            <span class="loop-badge" id="loop-badge">⟳ looping</span>
+            <span id="time-total">0:00</span>
           </div>
-          <div class="scrub-handle"  id="scrub-handle">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <ellipse cx="12" cy="15.5" rx="5" ry="4.2"/>
-              <ellipse cx="6.5" cy="9.5" rx="2.1" ry="2.8"/>
-              <ellipse cx="10" cy="6.5" rx="2.1" ry="2.9"/>
-              <ellipse cx="14" cy="6.5" rx="2.1" ry="2.9"/>
-              <ellipse cx="17.5" cy="9.5" rx="2.1" ry="2.8"/>
-            </svg>
+          <div class="tl-container">
+            <div class="tl-track" id="tl-track">
+              <div class="tl-buffered" id="tl-buffered"></div>
+              <div class="loop-zone"   id="loop-zone"></div>
+              <div class="tl-played"   id="tl-played"></div>
+            </div>
+            <div class="scrub-handle"  id="scrub-handle">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <ellipse cx="12" cy="15.5" rx="5" ry="4.2"/>
+                <ellipse cx="6.5" cy="9.5" rx="2.1" ry="2.8"/>
+                <ellipse cx="10" cy="6.5" rx="2.1" ry="2.9"/>
+                <ellipse cx="14" cy="6.5" rx="2.1" ry="2.9"/>
+                <ellipse cx="17.5" cy="9.5" rx="2.1" ry="2.8"/>
+              </svg>
+            </div>
+            <div class="loop-handle"   id="loop-in-handle"></div>
+            <div class="loop-handle"   id="loop-out-handle"></div>
           </div>
-          <div class="loop-handle"   id="loop-in-handle"></div>
-          <div class="loop-handle"   id="loop-out-handle"></div>
         </div>
       </div>
 
-      <div class="controls-row" id="controls-row" style="display:none">
-        <button class="ctrl-btn" id="btn-prev" title="−5s" aria-label="back 5 seconds">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="11 19 2 12 11 5 11 19" fill="currentColor" stroke="none"/>
-            <polygon points="22 19 13 12 22 5 22 19" fill="currentColor" stroke="none"/>
+      <!-- Tool trigger row -->
+      <div class="tool-row" id="tool-row" style="display:none">
+        <button class="tool-trigger" id="trig-speed">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 14 L16 10"/><circle cx="12" cy="14" r="0.5" fill="currentColor"/>
+            <path d="M5 18 a9 9 0 1 1 14 0"/>
           </svg>
+          <span id="trig-speed-text">1×</span>
         </button>
-        <button class="ctrl-btn play-btn" id="btn-play" aria-label="play/pause">
-          <svg class="icon-play" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="none">
-            <path d="M7 4.5 L19 12 L7 19.5 Z"/>
-          </svg>
-          <svg class="icon-pause" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="none" style="display:none">
-            <rect x="6" y="5" width="4" height="14" rx="1.2"/>
-            <rect x="14" y="5" width="4" height="14" rx="1.2"/>
-          </svg>
-        </button>
-        <button class="ctrl-btn" id="btn-next" title="+5s" aria-label="forward 5 seconds">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 19 22 12 13 5 13 19" fill="currentColor" stroke="none"/>
-            <polygon points="2 19 11 12 2 5 2 19" fill="currentColor" stroke="none"/>
-          </svg>
-        </button>
-        <div class="sep"></div>
-        <button class="ctrl-btn" id="btn-mirror" title="mirror">🪞</button>
-        <button class="ctrl-btn" id="btn-fullscreen" title="fullscreen" aria-label="fullscreen">
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 8 V4 H8 M16 4 H20 V8 M20 16 V20 H16 M8 20 H4 V16"/>
-          </svg>
+        <button class="tool-trigger" id="trig-loop">
+          <span style="font-size:15px">⟳</span>
+          <span id="trig-loop-text">A–B</span>
         </button>
       </div>
 
-      <div class="speed-row" id="speed-row" style="display:none">
+      <!-- Speed popover -->
+      <div class="tool-pop" id="speed-row" style="display:none">
         <span class="speed-label" id="p-speed-label">speed</span>
         <div class="speed-group">
           <button class="speed-btn" data-speed="0.5">0.5×</button>
@@ -863,62 +1019,28 @@ body.fs-lock { overflow: hidden; }
         </div>
       </div>
 
-    </div>
-
-    <!-- Side panel -->
-    <div class="side-panel">
-
-      <div class="panel-section">
-        <h3 id="p-section-view">View</h3>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-label" id="p-mirror-label">Flip horizontal</div>
-            <div class="toggle-desc"  id="p-mirror-desc">Practice like a mirror ✨</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="toggle-mirror">
-            <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          </label>
-        </div>
-      </div>
-
-      <div class="panel-section">
-        <h3 id="p-section-loop">Loop section</h3>
-        <div class="loop-controls">
-          <div class="loop-row">
-            <span class="loop-tag in">IN</span>
-            <input type="text" class="time-input" id="loop-in-input" placeholder="—" readonly>
-            <button class="set-btn" id="btn-set-in" data-i18n="set-here">set here</button>
-          </div>
-          <div class="loop-row">
-            <span class="loop-tag out">OUT</span>
-            <input type="text" class="time-input" id="loop-out-input" placeholder="—" readonly>
-            <button class="set-btn" id="btn-set-out" data-i18n="set-here">set here</button>
-          </div>
-          <div class="loop-btn-row">
-            <button class="loop-toggle-btn" id="btn-loop-toggle">Start loop</button>
-            <button class="loop-clear-btn"  id="btn-loop-clear">Clear</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel-section">
-        <h3 id="p-section-info">Video info</h3>
-        <div class="stat-row"><span class="stat-key" id="p-stat-dur">Duration</span><span class="stat-val" id="si-dur">—</span></div>
-        <div class="stat-row"><span class="stat-key" id="p-stat-res">Resolution</span><span class="stat-val" id="si-res">—</span></div>
-        <div class="stat-row"><span class="stat-key" id="p-stat-spd">Speed</span><span class="stat-val" id="si-speed">1×</span></div>
-      </div>
-
-      <div class="panel-section">
-        <h3 id="p-section-keys">Shortcuts</h3>
-        <div class="key-row"><span class="key-code">Space</span><span class="key-desc" id="k-play">play / pause</span></div>
-        <div class="key-row"><span class="key-code">← →</span><span class="key-desc" id="k-seek">±5 seconds</span></div>
-        <div class="key-row"><span class="key-code">M</span><span class="key-desc" id="k-mirror">flip mirror</span></div>
-        <div class="key-row"><span class="key-code">I / O</span><span class="key-desc" id="k-inout">set in / out</span></div>
-        <div class="key-row"><span class="key-code">L</span><span class="key-desc" id="k-loop">toggle loop</span></div>
+      <!-- AB loop popover -->
+      <div class="tool-pop loop-bar" id="loop-bar" style="display:none">
+        <span class="loop-bar-label" id="p-loop-label">A–B loop</span>
+        <button class="loop-ab-btn set-a" id="btn-set-in">
+          <span class="ab-letter">A</span><span class="ab-time" id="loop-in-time">—</span>
+        </button>
+        <button class="loop-ab-btn set-b" id="btn-set-out">
+          <span class="ab-letter">B</span><span class="ab-time" id="loop-out-time">—</span>
+        </button>
+        <button class="loop-ab-btn loop-go" id="btn-loop-toggle">⟳ <span id="loop-go-text">loop</span></button>
+        <button class="loop-ab-btn loop-x" id="btn-loop-clear">✕</button>
       </div>
 
     </div>
+
+    <!-- Hidden elements kept for JS compatibility (sidebar removed for mobile-first UI) -->
+    <input type="checkbox" id="toggle-mirror" hidden>
+    <span id="si-dur" hidden></span>
+    <span id="si-res" hidden></span>
+    <span id="si-speed" hidden></span>
+    <input type="hidden" id="loop-in-input">
+    <input type="hidden" id="loop-out-input">
   </div>
 </div>
 
@@ -988,6 +1110,7 @@ const I18N = {
     loadErrorHint:  'The format may be unsupported. Try an MP4 (H.264) file.',
     fullscreenUnsupported: 'Fullscreen not supported here',
     fsMirrorNote: 'Mirror is on, using in-app fullscreen. Turn off mirror for true fullscreen + rotation.',
+    loopBarLabel: 'A–B loop',
   },
   zh: {
     langBtn:        'English',
@@ -1044,6 +1167,7 @@ const I18N = {
     loadErrorHint:  '格式可能不支持，试试 MP4 (H.264) 文件。',
     fullscreenUnsupported: '此环境不支持全屏',
     fsMirrorNote: '镜像开启中，使用应用内全屏。关闭镜像可用真·全屏 + 自动旋转。',
+    loopBarLabel: 'A–B 循环',
   }
 };
 
@@ -1064,28 +1188,12 @@ function applyI18n() {
   document.getElementById('h-list-label').textContent  = l.listLabel;
   document.getElementById('h-fab').textContent         = l.fab;
   // Player panel
-  document.getElementById('p-section-view').textContent  = l.sectionView;
-  document.getElementById('p-mirror-label').textContent  = l.mirrorLabel;
-  document.getElementById('p-mirror-desc').textContent   = l.mirrorDesc;
-  document.getElementById('p-section-loop').textContent  = l.sectionLoop;
-  document.getElementById('btn-set-in').textContent      = l.setHere;
-  document.getElementById('btn-set-out').textContent     = l.setHere;
-  document.getElementById('btn-loop-clear').textContent  = l.clearLoop;
-  document.getElementById('p-section-info').textContent  = l.sectionInfo;
-  document.getElementById('p-stat-dur').textContent      = l.statDur;
-  document.getElementById('p-stat-res').textContent      = l.statRes;
-  document.getElementById('p-stat-spd').textContent      = l.statSpeed;
-  document.getElementById('p-section-keys').textContent  = l.sectionKeys;
-  document.getElementById('k-play').textContent          = l.kPlay;
-  document.getElementById('k-seek').textContent          = l.kSeek;
-  document.getElementById('k-mirror').textContent        = l.kMirror;
-  document.getElementById('k-inout').textContent         = l.kInOut;
-  document.getElementById('k-loop').textContent          = l.kLoop;
   document.getElementById('p-speed-label').textContent   = l.speedLabel;
+  document.getElementById('p-loop-label').textContent    = l.loopBarLabel;
   document.getElementById('loop-badge').textContent      = l.loopBadge;
-  // Loop toggle button text (depends on current state)
+  // Loop toggle text (depends on current state)
   const loopOn = document.getElementById('btn-loop-toggle').classList.contains('on');
-  document.getElementById('btn-loop-toggle').textContent = loopOn ? l.stopLoop : l.startLoop;
+  document.getElementById('loop-go-text').textContent = loopOn ? l.stopLoop : l.startLoop;
   // Re-render home list for date strings
   renderHome();
 }
@@ -1319,8 +1427,12 @@ function goToHome() {
   canvas.style.display = 'none';
   document.getElementById('load-status').className = '';
   document.getElementById('timeline-wrap').style.display = 'none';
-  document.getElementById('controls-row').style.display  = 'none';
+  videoWrap.classList.remove('has-video', 'playing', 'controls-hidden');
+  document.getElementById('tool-row').style.display      = 'none';
   document.getElementById('speed-row').style.display     = 'none';
+  document.getElementById('loop-bar').style.display      = 'none';
+  document.getElementById('trig-speed').classList.remove('open');
+  document.getElementById('trig-loop').classList.remove('open');
   setPlayIcon(false);
   Object.assign(ps, { mirrored:false, speed:1, loopIn:null, loopOut:null, loopActive:false, duration:0 });
   toggleMirror.checked = false;
@@ -1329,9 +1441,14 @@ function goToHome() {
   hideLoopZone();
   document.getElementById('loop-badge').classList.remove('show');
   const lt = document.getElementById('btn-loop-toggle');
-  lt.textContent = t().startLoop; lt.classList.remove('on');
+  document.getElementById('loop-go-text').textContent = t().startLoop;
+  lt.classList.remove('on');
   document.getElementById('loop-in-input').value  = '';
   document.getElementById('loop-out-input').value = '';
+  document.getElementById('loop-in-time').textContent  = '—';
+  document.getElementById('loop-out-time').textContent = '—';
+  document.getElementById('btn-set-in').classList.remove('has-point');
+  document.getElementById('btn-set-out').classList.remove('has-point');
   document.getElementById('screen-player').classList.add('hidden');
   document.getElementById('screen-home').classList.remove('hidden');
   renderHome();
@@ -1371,7 +1488,12 @@ function loadVideoFile(file) {
   document.getElementById('loop-out-input').value = '';
   document.getElementById('loop-badge').classList.remove('show');
   const lt = document.getElementById('btn-loop-toggle');
-  lt.textContent = t().startLoop; lt.classList.remove('on');
+  document.getElementById('loop-go-text').textContent = t().startLoop;
+  lt.classList.remove('on');
+  document.getElementById('loop-in-time').textContent  = '—';
+  document.getElementById('loop-out-time').textContent = '—';
+  document.getElementById('btn-set-in').classList.remove('has-point');
+  document.getElementById('btn-set-out').classList.remove('has-point');
   // play icon back to "play"
   setPlayIcon(false);
   // reset speed to 1×
@@ -1379,14 +1501,19 @@ function loadVideoFile(file) {
   vid.playbackRate = 1;
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b.dataset.speed === '1'));
   document.getElementById('si-speed').textContent = '1×';
+  document.getElementById('trig-speed-text').textContent = '1×';
 
   // Show player UI immediately
   goToPlayer();
   canvas.style.display = 'none';        // canvas no longer used for display
   vid.classList.add('native-visible');  // show the real <video> element
   document.getElementById('timeline-wrap').style.display = 'flex';
-  document.getElementById('controls-row').style.display  = 'flex';
-  document.getElementById('speed-row').style.display     = 'flex';
+  document.getElementById('video-wrap').classList.add('has-video');
+  document.getElementById('tool-row').style.display      = 'flex';
+  document.getElementById('speed-row').style.display     = 'none';
+  document.getElementById('loop-bar').style.display      = 'none';
+  document.getElementById('trig-speed').classList.remove('open');
+  document.getElementById('trig-loop').classList.remove('open');
 
   // Show loading dog + progress bar
   const ls = document.getElementById('load-status');
@@ -1540,6 +1667,16 @@ const iconPause = btnPlay.querySelector('.icon-pause');
 function setPlayIcon(playing) {
   iconPlay.style.display  = playing ? 'none' : 'block';
   iconPause.style.display = playing ? 'block' : 'none';
+  const vw = document.getElementById('video-wrap');
+  vw.classList.toggle('playing', playing);
+  if (playing) {
+    // auto-hide controls shortly after playback starts
+    clearTimeout(vw._hideT);
+    vw._hideT = setTimeout(() => { if (!vid.paused) vw.classList.add('controls-hidden'); }, 1400);
+  } else {
+    clearTimeout(vw._hideT);
+    vw.classList.remove('controls-hidden');
+  }
 }
 
 function togglePlay() {
@@ -1547,10 +1684,8 @@ function togglePlay() {
   else { vid.pause(); setPlayIcon(false); renderOnce(); }
 }
 
-btnPlay.addEventListener('click', togglePlay);
+btnPlay.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
 vid.addEventListener('ended', () => { setPlayIcon(false); renderOnce(); });
-document.getElementById('btn-prev').addEventListener('click', () => { vid.currentTime = Math.max(0, vid.currentTime-5); renderOnce(); });
-document.getElementById('btn-next').addEventListener('click', () => { vid.currentTime = Math.min(ps.duration, vid.currentTime+5); renderOnce(); });
 
 /* Fullscreen */
 const btnFullscreen = document.getElementById('btn-fullscreen');
@@ -1600,11 +1735,19 @@ document.getElementById('fs-exit').addEventListener('click', () => {
   if (videoWrap.classList.contains('css-fullscreen')) cssFullscreen();
   else if (document.fullscreenElement) document.exitFullscreen();
 });
-// In fullscreen, tapping the video toggles play/pause
+// Tap the video area: toggle play/pause (and reveal controls if hidden)
 videoWrap.addEventListener('click', e => {
-  if (!videoWrap.classList.contains('css-fullscreen')) return;
   if (e.target.closest('.fs-exit')) return;
-  if (ps.duration) togglePlay();
+  if (e.target.closest('.overlay-tools')) return;
+  if (e.target.closest('.overlay-play')) return; // handled by its own listener
+  if (e.target.closest('.timeline-wrap')) return; // don't toggle when using the scrubber
+  if (!ps.duration) return;
+  // If controls are hidden mid-play, first tap just reveals them
+  if (videoWrap.classList.contains('controls-hidden')) {
+    videoWrap.classList.remove('controls-hidden');
+    return;
+  }
+  togglePlay();
 });
 // Exit CSS fullscreen on Escape (desktop) — harmless on mobile
 document.addEventListener('keydown', e => {
@@ -1627,21 +1770,63 @@ document.querySelectorAll('.speed-btn').forEach(btn => {
     vid.playbackRate = sp; ps.speed = sp;
     document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b===btn));
     document.getElementById('si-speed').textContent = sp+'×';
+    document.getElementById('trig-speed-text').textContent = sp+'×';
     showToast(t().toastSpeed(sp));
+    closePops(); // collapse after picking
   });
 });
 
+/* Tool popovers (speed / loop) */
+const trigSpeed = document.getElementById('trig-speed');
+const trigLoop  = document.getElementById('trig-loop');
+const speedPop  = document.getElementById('speed-row');
+const loopPop   = document.getElementById('loop-bar');
+
+function closePops() {
+  speedPop.style.display = 'none';
+  loopPop.style.display  = 'none';
+  trigSpeed.classList.remove('open');
+  trigLoop.classList.remove('open');
+}
+function togglePop(which) {
+  const openSpeed = which === 'speed' && speedPop.style.display === 'none';
+  const openLoop  = which === 'loop'  && loopPop.style.display  === 'none';
+  closePops();
+  if (openSpeed) { speedPop.style.display = 'flex'; trigSpeed.classList.add('open'); }
+  if (openLoop)  { loopPop.style.display  = 'flex'; trigLoop.classList.add('open'); }
+}
+trigSpeed.addEventListener('click', () => togglePop('speed'));
+trigLoop.addEventListener('click',  () => togglePop('loop'));
+
 /* Loop */
 function applyLoop() {
+  // hidden inputs (kept for compatibility)
   document.getElementById('loop-in-input').value  = ps.loopIn  != null ? fmt(ps.loopIn)  : '';
   document.getElementById('loop-out-input').value = ps.loopOut != null ? fmt(ps.loopOut) : '';
+
+  // AB loop bar buttons
+  const aBtn = document.getElementById('btn-set-in');
+  const bBtn = document.getElementById('btn-set-out');
+  document.getElementById('loop-in-time').textContent  = ps.loopIn  != null ? fmt(ps.loopIn)  : '—';
+  document.getElementById('loop-out-time').textContent = ps.loopOut != null ? fmt(ps.loopOut) : '—';
+  aBtn.classList.toggle('has-point', ps.loopIn  != null);
+  bBtn.classList.toggle('has-point', ps.loopOut != null);
+
   if (ps.loopIn != null || ps.loopOut != null) updateLoopZone(); else hideLoopZone();
+
   const on = ps.loopActive && ps.loopIn != null;
   document.getElementById('loop-badge').classList.toggle('show', on);
   document.getElementById('loop-badge').textContent = t().loopBadge;
   const lt = document.getElementById('btn-loop-toggle');
-  lt.textContent = on ? t().stopLoop : t().startLoop;
   lt.classList.toggle('on', on);
+  document.getElementById('loop-go-text').textContent = on ? t().stopLoop : t().startLoop;
+  // Reflect state on the collapsed trigger button
+  const trigLoopText = document.getElementById('trig-loop-text');
+  const trigLoopBtn  = document.getElementById('trig-loop');
+  if (trigLoopText) {
+    trigLoopText.textContent = on ? 'on' : 'A–B';
+    trigLoopBtn.classList.toggle('loop-active', on);
+  }
 }
 
 document.getElementById('btn-set-in').addEventListener('click', () => {
