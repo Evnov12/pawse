@@ -566,16 +566,25 @@ body.fs-lock { overflow: hidden; }
 
 .loop-handle {
   position: absolute;
-  top: 7px;
-  width: 12px; height: 22px;
-  border-radius: 3px;
+  top: 4px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
   cursor: ew-resize;
   z-index: 11;
   display: none;
   transform: translateX(-50%);
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  border: 2px solid rgba(255,255,255,0.7);
 }
+.loop-handle.show { display: flex; }
 #loop-in-handle  { background: var(--blue-mid); }
 #loop-out-handle { background: var(--danger); }
+#loop-in-handle:active, #loop-out-handle:active { transform: translateX(-50%) scale(1.2); }
 
 /* Controls */
 .controls-row {
@@ -984,8 +993,8 @@ body.fs-lock { overflow: hidden; }
                 <ellipse cx="17.5" cy="9.5" rx="2.1" ry="2.8"/>
               </svg>
             </div>
-            <div class="loop-handle"   id="loop-in-handle"></div>
-            <div class="loop-handle"   id="loop-out-handle"></div>
+            <div class="loop-handle"   id="loop-in-handle">A</div>
+            <div class="loop-handle"   id="loop-out-handle">B</div>
           </div>
         </div>
       </div>
@@ -1619,12 +1628,27 @@ function updateTimeline() {
 function updateLoopZone() {
   const inn = ps.loopIn??0, out = ps.loopOut??ps.duration;
   const l = timeToPct(inn), w = timeToPct(out)-l;
-  loopZone.style.cssText  = `left:${l}%;width:${w}%;display:block`;
-  loopInH.style.cssText   = `left:${l}%;display:block`;
-  loopOutH.style.cssText  = `left:${l+w}%;display:block`;
+  loopZone.style.left  = l + '%';
+  loopZone.style.width = w + '%';
+  loopZone.style.display = 'block';
+  loopInH.style.left  = l + '%';
+  loopOutH.style.left = (l + w) + '%';
+  loopInH.classList.add('show');
+  loopOutH.classList.add('show');
 }
 
-function hideLoopZone() { loopZone.style.display = loopInH.style.display = loopOutH.style.display = 'none'; }
+function hideLoopZone() {
+  loopZone.style.display = 'none';
+  loopInH.classList.remove('show');
+  loopOutH.classList.remove('show');
+}
+
+// Show A/B handles at default positions (for dragging before points are set)
+function showLoopHandlesDefault() {
+  if (ps.loopIn == null)  ps.loopIn  = 0;
+  if (ps.loopOut == null) ps.loopOut = ps.duration;
+  applyLoop();
+}
 
 vid.addEventListener('timeupdate', () => {
   updateTimeline();
@@ -1648,8 +1672,16 @@ tlTrack.addEventListener('click', e => { if (!ps.duration) return; vid.currentTi
 function onDragMove(x) {
   const t = posToTime(x);
   if (ps.draggingHandle === 'scrub') { vid.currentTime = t; ps.scrubbing = true; updateTimeline(); renderOnce(); }
-  else if (ps.draggingHandle === 'loopIn')  { ps.loopIn = Math.max(0, Math.min(t,(ps.loopOut??ps.duration)-0.1)); document.getElementById('loop-in-input').value = fmt(ps.loopIn); updateLoopZone(); }
-  else if (ps.draggingHandle === 'loopOut') { ps.loopOut = Math.min(ps.duration, Math.max(t,(ps.loopIn??0)+0.1)); document.getElementById('loop-out-input').value = fmt(ps.loopOut); updateLoopZone(); }
+  else if (ps.draggingHandle === 'loopIn')  {
+    ps.loopIn = Math.max(0, Math.min(t,(ps.loopOut??ps.duration)-0.1));
+    vid.currentTime = ps.loopIn;       // preview the frame at A
+    applyLoop();
+  }
+  else if (ps.draggingHandle === 'loopOut') {
+    ps.loopOut = Math.min(ps.duration, Math.max(t,(ps.loopIn??0)+0.1));
+    vid.currentTime = ps.loopOut;      // preview the frame at B
+    applyLoop();
+  }
 }
 
 document.addEventListener('mousemove', e => { if (ps.draggingHandle) onDragMove(e.clientX); });
@@ -1793,7 +1825,12 @@ function togglePop(which) {
   const openLoop  = which === 'loop'  && loopPop.style.display  === 'none';
   closePops();
   if (openSpeed) { speedPop.style.display = 'flex'; trigSpeed.classList.add('open'); }
-  if (openLoop)  { loopPop.style.display  = 'flex'; trigLoop.classList.add('open'); }
+  if (openLoop)  {
+    loopPop.style.display = 'flex';
+    trigLoop.classList.add('open');
+    // Show A/B handles right away so they can be dragged to set points
+    if (ps.duration) showLoopHandlesDefault();
+  }
 }
 trigSpeed.addEventListener('click', () => togglePop('speed'));
 trigLoop.addEventListener('click',  () => togglePop('loop'));
