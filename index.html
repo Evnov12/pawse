@@ -1685,9 +1685,14 @@ function onDragMove(x) {
 }
 
 document.addEventListener('mousemove', e => { if (ps.draggingHandle) onDragMove(e.clientX); });
-document.addEventListener('touchmove', e => { if (ps.draggingHandle) onDragMove(e.touches[0].clientX); }, {passive:false});
-document.addEventListener('mouseup',   () => { ps.draggingHandle = null; ps.scrubbing = false; });
-document.addEventListener('touchend',  () => { ps.draggingHandle = null; ps.scrubbing = false; });
+document.addEventListener('touchmove', e => {
+  if (ps.draggingHandle) {
+    e.preventDefault();            // stop page scroll so the drag keeps firing on iOS
+    onDragMove(e.touches[0].clientX);
+  }
+}, {passive:false});
+document.addEventListener('mouseup',   () => { if (ps.draggingHandle && ps.draggingHandle !== 'scrub') applyLoop(); ps.draggingHandle = null; ps.scrubbing = false; });
+document.addEventListener('touchend',  () => { if (ps.draggingHandle && ps.draggingHandle !== 'scrub') applyLoop(); ps.draggingHandle = null; ps.scrubbing = false; });
 
 /* Playback controls */
 const btnPlay   = document.getElementById('btn-play');
