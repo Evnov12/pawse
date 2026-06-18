@@ -1,5 +1,5 @@
 // Pawse service worker
-const CACHE = 'pawse-v29';
+const CACHE = 'pawse-v33';
 const ASSETS = [
   './',
   './index.html',

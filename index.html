@@ -179,6 +179,12 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   font-size: 18px;
   border: var(--border);
+  overflow: hidden;
+}
+.project-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .project-info { flex: 1; min-width: 0; }
@@ -630,25 +636,37 @@ body.fs-lock { overflow: hidden; }
 
 .loop-handle {
   position: absolute;
-  top: 4px;
-  width: 22px; height: 22px;
-  border-radius: 50%;
+  top: 2px;
+  width: 7px; height: 26px;
+  border-radius: 3px;
   cursor: ew-resize;
   z-index: 11;
   display: none;
   transform: translateX(-50%);
-  align-items: center;
-  justify-content: center;
-  color: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.85);
+}
+/* letter label above the bar */
+.loop-handle::after {
+  content: attr(data-label);
+  position: absolute;
+  top: -15px; left: 50%;
+  transform: translateX(-50%);
   font-size: 11px;
   font-weight: 700;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
-  border: 2px solid rgba(255,255,255,0.7);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
-.loop-handle.show { display: flex; }
+.loop-handle.show { display: block; }
+/* wider invisible hit area so the thin bar is easy to grab */
+.loop-handle::before {
+  content: "";
+  position: absolute;
+  top: -6px; bottom: -6px; left: -8px; right: -8px;
+}
 #loop-in-handle  { background: var(--blue-mid); }
 #loop-out-handle { background: var(--danger); }
-#loop-in-handle:active, #loop-out-handle:active { transform: translateX(-50%) scale(1.2); }
+#loop-in-handle:active, #loop-out-handle:active { transform: translateX(-50%) scaleY(1.12); }
 
 /* Controls */
 .controls-row {
@@ -1025,8 +1043,8 @@ body.fs-lock { overflow: hidden; }
 /* Toast */
 #toast {
   position: fixed;
-  bottom: 24px; left: 50%;
-  transform: translateX(-50%) translateY(60px);
+  top: max(16px, env(safe-area-inset-top)); left: 50%;
+  transform: translateX(-50%) translateY(-60px);
   background: rgba(112, 140, 156, 0.82);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
@@ -1135,8 +1153,8 @@ body.fs-lock { overflow: hidden; }
                 <ellipse cx="17.5" cy="9.5" rx="2.1" ry="2.8"/>
               </svg>
             </div>
-            <div class="loop-handle"   id="loop-in-handle">A</div>
-            <div class="loop-handle"   id="loop-out-handle">B</div>
+            <div class="loop-handle"   id="loop-in-handle"  data-label="A"></div>
+            <div class="loop-handle"   id="loop-out-handle" data-label="B"></div>
           </div>
         </div>
       </div>
@@ -1385,7 +1403,7 @@ let currentFileURL  = null;
 const STORAGE_KEY = 'pawse-projects';
 
 function saveProjects() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects.map(p => ({ id:p.id, name:p.name, lastOpened:p.lastOpened })))); } catch(e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(projects.map(p => ({ id:p.id, name:p.name, lastOpened:p.lastOpened, thumb:p.thumb })))); } catch(e) {}
 }
 function loadProjects() {
   try { const r = localStorage.getItem(STORAGE_KEY); if (r) projects = JSON.parse(r); } catch(e) { projects = []; }
@@ -1418,6 +1436,48 @@ async function saveVideo(id, blob) {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+// Grab a small preview frame from a video blob → JPEG dataURL (or null on failure)
+function makeThumb(blob) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (val) => { if (!done) { done = true; cleanup(); resolve(val); } };
+    const url = URL.createObjectURL(blob);
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'metadata';
+    v.src = url;
+    function cleanup() { try { URL.revokeObjectURL(url); } catch(e){} v.removeAttribute('src'); try{v.load();}catch(e){} }
+    const seekTo = () => { try { v.currentTime = Math.min(1, (v.duration||2) * 0.3); } catch(e){ finish(null); } };
+    v.addEventListener('loadeddata', seekTo);
+    v.addEventListener('seeked', () => {
+      try {
+        const w = 160, ratio = (v.videoHeight && v.videoWidth) ? v.videoHeight/v.videoWidth : 0.56;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = Math.round(w * ratio);
+        const ctx = c.getContext('2d');
+        ctx.drawImage(v, 0, 0, c.width, c.height);
+        const data = c.toDataURL('image/jpeg', 0.6);
+        // a black/blank frame is tiny; treat very short output as failure
+        finish(data && data.length > 1200 ? data : null);
+      } catch(e) { finish(null); }
+    });
+    v.addEventListener('error', () => finish(null));
+    setTimeout(() => finish(null), 4000); // safety timeout (some iOS .mov can't be drawn)
+  });
+}
+
+// Generate + store a thumbnail for a project (best-effort, non-blocking)
+async function generateThumb(proj, blob) {
+  try {
+    const thumb = await makeThumb(blob);
+    if (thumb) {
+      proj.thumb = thumb;
+      saveProjects();
+      const el = document.querySelector(`.project-thumb[data-thumb="${proj.id}"]`);
+      if (el) el.innerHTML = `<img src="${thumb}" alt="">`;
+    }
+  } catch(e) {}
 }
 
 async function getVideo(id) {
@@ -1466,7 +1526,7 @@ function renderHome() {
       ? new Date(proj.lastOpened).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { month:'short', day:'numeric', year:'numeric' })
       : t().neverOpened;
     item.innerHTML = `
-      <div class="project-thumb">🎬</div>
+      <div class="project-thumb" data-thumb="${proj.id}">${proj.thumb ? `<img src="${proj.thumb}" alt="">` : '🎬'}</div>
       <div class="project-info">
         <div class="project-name" data-name="${proj.id}">${proj.name}</div>
         <div class="project-meta">${dateStr}</div>
@@ -1491,6 +1551,24 @@ function renderHome() {
     item.addEventListener('click', () => openProject(proj.id));
     projList.appendChild(item);
   });
+
+  // Backfill thumbnails for projects that don't have one yet (one at a time, lazily)
+  backfillThumbs(sorted);
+}
+
+let _thumbBusy = false;
+async function backfillThumbs(list) {
+  if (_thumbBusy) return;
+  const missing = list.find(p => !p.thumb);
+  if (!missing) return;
+  _thumbBusy = true;
+  try {
+    const blob = await getVideo(missing.id);
+    if (blob) await generateThumb(missing, blob);
+  } catch(e) {}
+  _thumbBusy = false;
+  // continue with the next missing one
+  if (list.some(p => !p.thumb)) setTimeout(() => backfillThumbs(list), 200);
 }
 
 function startRename(id) {
@@ -1570,6 +1648,7 @@ fileInput.addEventListener('change', async e => {
     // Save to IndexedDB in the background — don't block the UI
     saveVideo(proj.id, file).catch(() => showToast(t().toastStoreFail));
     saveProjects();
+    generateThumb(proj, file);   // best-effort preview frame
   } else if (mode === 'relink') {
     const id = fileInput.dataset.relinkId;
     const proj = projects.find(p => p.id === id);
@@ -1839,7 +1918,16 @@ vid.addEventListener('timeupdate', () => {
 });
 
 /* Scrubbing */
-function startDrag(type, e) { e.preventDefault(); ps.draggingHandle = type; }
+function startDrag(type, e) {
+  e.preventDefault();
+  ps.draggingHandle = type;
+  // Keep controls on-screen for the whole drag — cancel any pending auto-hide
+  const vw = document.getElementById('video-wrap');
+  const sp = document.getElementById('screen-player');
+  clearTimeout(vw._hideT);
+  vw.classList.remove('controls-hidden');
+  sp.classList.remove('controls-off');
+}
 scrubHandle.addEventListener('mousedown', e => startDrag('scrub', e));
 loopInH.addEventListener('mousedown',     e => startDrag('loopIn', e));
 loopOutH.addEventListener('mousedown',    e => startDrag('loopOut', e));
@@ -1903,6 +1991,8 @@ function endDrag() {
   else if (h === 'loopOut') { target = ps.loopOut; applyLoop(); }
   if (target != null) { try { vid.currentTime = target; } catch(e) {} }
   _pendingSeek = null;
+  // Keep controls visible after a drag so the user can keep fine-tuning;
+  // they'll hide again on the next tap-to-play or when playback resumes.
 }
 
 document.addEventListener('mousemove', e => { if (ps.draggingHandle) onDragMove(e.clientX); });
